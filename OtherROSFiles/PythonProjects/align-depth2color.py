@@ -6,11 +6,15 @@
 #####################################################
 
 # First import the library
+from matplotlib.dates import strpdate2num
+
 import pyrealsense2 as rs
 # Import Numpy for easy array manipulation
 import numpy as np
 # Import OpenCV for easy image rendering
 import cv2
+# Import pyarrow for parquet functionality (parquet is a file structure compatible with Matlab)
+import pyarrow.parquet as pq
 
 # Create a pipeline
 pipeline = rs.pipeline()
@@ -66,25 +70,42 @@ try:
         depth_image_3d = np.dstack((depth_image,depth_image,depth_image)) #depth image is 1 channel, color is 3 channels
         bg_removed = np.where((depth_image_3d > clipping_distance) | (depth_image_3d <= 0), grey_color, color_image)
 
+
+
+
+
         # Render images
 
-        """depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
+        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
         images = np.hstack((bg_removed, depth_colormap))
         cv2.namedWindow('Align Example', cv2.WINDOW_AUTOSIZE)
         cv2.imshow('Align Example', images)
         key = cv2.waitKey(1)
-        """
-
-        # Instead, send image data to file
-
-        # Depth_image contains depth data, bg_removed contains color image with areas of overlap removed
-        np.savetxt('test.txt', depth_image, fmt='%d')
-        break
 
 
-        # Press esc or 'q' to close the image window
+        # Do only once
+        #break
+
+        # Press esc or 'q' to close the image window and write the image to a file
         if key & 0xFF == ord('q') or key == 27:
             cv2.destroyAllWindows()
+
+            # Instead, send image data to file
+            # Depth_image contains depth data, bg_removed contains color image with areas of overlap removed
+            depth_image1D = np.expand_dims(depth_image, axis=2)
+            snapshotArray = np.concatenate((bg_removed, depth_image1D), axis=-1)
+
+            # Could use a parquet object to transfer to matlab, probably too complicated
+            #pq.write_table(snapshotArray, 'example.parquet')
+
+            # Numpy savetext - delimits poorly, does not retain array
+            #np.savetxt('test', snapshotArray, fmt='%uin')
+
+            # OpenCV imwrite most effective, can write as 4D PNG
+
+            # cv2.imwrite('test.png', snapshotArray, CV_IMWRITE_PNG_COMPRESSION=0)
+            cv2.imwrite('test.png', snapshotArray, [cv2.IMWRITE_PNG_COMPRESSION, 0])
+
             break
 finally:
     pipeline.stop()

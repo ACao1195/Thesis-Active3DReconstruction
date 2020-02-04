@@ -120,7 +120,7 @@ temp1 = (cameraParams.IntrinsicMatrix') \ topVector';
 depth_1 = 352;
 temp2 = temp1 .* depth_1; % Replace z value with depth to first image
 
-temp2(4) = 1;
+temp2(4) = 1; % Add 1 to make a 4x1 vector
 temp3 = extMat_1 \ temp2;
 
 %temp2 = temp1 - transVec_1';
@@ -133,17 +133,27 @@ topWorldPoint = temp3;
 topPoint_2 = intrinsicMat * extMat_2 * topWorldPoint;
 topPoint_1 = intrinsicMat * extMat_1 * topWorldPoint;
 
-
+% Scale so that z value = 1
 topPoint_2 = topPoint_2 ./ topPoint_2(3);
 topPoint_1 = topPoint_1 ./ topPoint_1(3);
 
 %% Potential Depth Error: Generating Points
+% According to Ahn et al., variance at 1m measuring distance = 0.01m
+% RMS error = (square) root mean square error, i.e. standard deviation
+% RMS error at <1m is bound to under 5mm, averaging around 4mm
+
+% For standard deviations, within 1 = 67%, within 2 = 95%, within 3=99.7%
+% ASSUMING THE SHAPE OF THE PROBABILITY CURVE IS NORMAL (which in this case
+% it is not - better fits a gaussian distribution)
+
+% Fixed error range using 4mm, 3std deviations each way
+errorRange = [[-3:1:3] * 4];
 
 % Smaller Error Range
 %errorRange = [0, [-.01:0.001:0.01] * depth_1];
 
 % Larger Error Range
-errorRange = [0, [-.1:0.005:0.1] * depth_1];
+%errorRange = [0, [-.1:0.005:0.1] * depth_1];
 
 % Potential depth offsets in the world point
 topWorldPoint = zeros(4,size(errorRange,2));
@@ -168,13 +178,28 @@ hold on
 plot(imagePoints(:,1,1),imagePoints(:,2,1),'r*'); % Show original detected checkerboard points
 plot(imagePoints(:,1,2)+640,imagePoints(:,2,2),'r*');
 
+% Plot original point
+plot(topVector(1),topVector(2),'o-','MarkerSize',20,'MarkerFaceColor','Green'); 
 
-plot(topVector(1),topVector(2),'o-','MarkerSize',20,'MarkerFaceColor','Green'); % Plot original point
+centrePoint = ceil(size(topPoint_2,2)/2);
+% Plot base reprojected point
+plot(topPoint_2(1,centrePoint)+640,topPoint_2(2,centrePoint),'o-',...
+    'MarkerSize',10,'MarkerFaceColor','Green'); 
 
-plot(topPoint_2(1)+640,topPoint_2(2),'o-','MarkerSize',10,'MarkerFaceColor','Red'); % Plot reprojected point
+pointsToPlot = [centrePoint+1,centrePoint-1];
+% Plot 1 std. dev. away
+plot(topPoint_2(1,pointsToPlot)+640,topPoint_2(2,pointsToPlot),'o-',...
+    'MarkerSize',10,'MarkerFaceColor','Yellow');
 
-plot(topPoint_2(1,:)+640,topPoint_2(2,:),'o-','MarkerSize',10,'MarkerFaceColor','Green'); % Plot reprojected point
+pointsToPlot = [centrePoint+2,centrePoint-2];
+% Plot 1 std. dev. away
+plot(topPoint_2(1,pointsToPlot)+640,topPoint_2(2,pointsToPlot),'o-',...
+    'MarkerSize',10,'MarkerFaceColor','Magenta');
 
+pointsToPlot = [centrePoint+3,centrePoint-3];
+% Plot 1 std. dev. away
+plot(topPoint_2(1,pointsToPlot)+640,topPoint_2(2,pointsToPlot),'o-',...
+    'MarkerSize',10,'MarkerFaceColor','Red');
 
 %{
  Old

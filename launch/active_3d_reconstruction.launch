@@ -1,0 +1,6 @@
+<launch>
+
+  <node name="thesis_active_3d_reconstruction_node" pkg="thesis_active_3d_reconstruction" type="thesis_active_3d_reconstruction_node" respawn="false" output="screen">
+  </node>
+
+</launch>
