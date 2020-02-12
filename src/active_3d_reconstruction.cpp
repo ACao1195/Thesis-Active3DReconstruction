@@ -122,40 +122,142 @@ int main(int argc, char** argv)
 	// end-effector.
 	geometry_msgs::Pose initPose;
 
-// Adding/Removing Objects and Attaching/Detaching Objects
-	  // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-	  //
-	  // Define a collision object ROS message.
-	  moveit_msgs::CollisionObject collision_object;
-	  collision_object.header.frame_id = move_group.getPlanningFrame();
+	/***************************/
+	/*** Adding Safety Planes***/
+	/***************************/
 
-	  // The id of the object is used to identify it.
-	  collision_object.id = "plane1";
+	/*** Base Safety Plane - Defining the table  ***/
+	// Define a collision object ROS message for the safety plane base.
+	moveit_msgs::CollisionObject safetyPlaneBase;
+	safetyPlaneBase.header.frame_id = move_group.getPlanningFrame();
 
-	  // Define a plane to add to the world - this one is z = 0.
-	  shape_msgs::Plane plane1;
-	  plane1.coef = {0,0,1,0};
-	  geometry_msgs::Pose plane1pose;
-	  
-	  /***************/
-	  /**** ISSUE ****/
-	  // Need to figure out how to express the plane's pose in quaternion form - see https://answers.ros.org/question/9772/quaternions-orientation-representation/
+	// The id of the object is used to identify it.
+	safetyPlaneBase.id = "zPlane";
+
+	// Define a plane to add to the world - this one is z = 0.
+	shape_msgs::Plane zPlane;
+	zPlane.coef = {0,0,1,0};
+
+	safetyPlaneBase.planes.push_back(zPlane);
+
+	// Express the plane's pose in quaternion form - see https://answers.ros.org/question/9772/quaternions-orientation-representation/
+
+	// Will use the same pose for all planes
+	geometry_msgs::Pose planePose;
+	planePose.position.x = 0;
+	planePose.position.y = 0;
+	planePose.position.z = 0;
+	planePose.orientation.w = 1; // This specifies a rotation of 0
+
+	// Add pose of zPlane to safetyPlaneBase
+	safetyPlaneBase.plane_poses.push_back(planePose);
+
+	safetyPlaneBase.operation = safetyPlaneBase.ADD;
+
+	std::vector<moveit_msgs::CollisionObject> allSafetyPlanes; // Create a vector of objects from the CollisionObject class
+	allSafetyPlanes.push_back(safetyPlaneBase); // Add safetyPlaneBase item to the vector
 
 
-	  collision_object.planes.push_back(plane1);
-	  collision_object.operation = collision_object.ADD;
+	/*** Positive x safety plane ***/
 
-	  std::vector<moveit_msgs::CollisionObject> collision_objects; // Create a vector of objects from the CollisionObject class
-	  collision_objects.push_back(collision_object); // Add collision_object item to the vector
+	moveit_msgs::CollisionObject xPosSafetyPlane;
+	xPosSafetyPlane.header.frame_id = move_group.getPlanningFrame();
 
-	  // Now, let's add the collision object into the world
-	  ROS_INFO_NAMED("tutorial", "Add an object into the world");
-	  planning_scene_interface.addCollisionObjects(collision_objects);
+	// The id of the object is used to identify it.
+	xPosSafetyPlane.id = "xPosPlane";
 
-	  std::cout << "Pausing. Press enter to continue."; // Currently getting error - Number of planes does not match number of poses in collision object message
-	  std::cin.ignore().get(); 
+	// Define a plane to add to the world - this one is x = 0.8.
+	shape_msgs::Plane xPosPlane;
+	xPosPlane.coef = {1,0,0,-0.8};
 
-	  // Wait for MoveGroup to recieve and process the collision object message
+	xPosSafetyPlane.planes.push_back(xPosPlane);
+
+	// Add pose of zPlane to xPosSafetyPlane
+	xPosSafetyPlane.plane_poses.push_back(planePose);
+
+	xPosSafetyPlane.operation = xPosSafetyPlane.ADD;
+
+	allSafetyPlanes.push_back(xPosSafetyPlane);
+
+
+	/*** Negative x safety plane ***/
+
+	moveit_msgs::CollisionObject xNegSafetyPlane;
+	xNegSafetyPlane.header.frame_id = move_group.getPlanningFrame();
+
+	// The id of the object is used to identify it.
+	xNegSafetyPlane.id = "xNegPlane";
+
+	// Define a plane to add to the world - this one is x = -0.5 (As it is behind the robot)
+	shape_msgs::Plane xNegPlane;
+	xNegPlane.coef = {1,0,0,0.5};
+
+	xNegSafetyPlane.planes.push_back(xNegPlane);
+
+	// Add pose to plane
+	xNegSafetyPlane.plane_poses.push_back(planePose);
+
+	xNegSafetyPlane.operation = xNegSafetyPlane.ADD;
+
+	allSafetyPlanes.push_back(xNegSafetyPlane);
+
+	/*** Positive y safety plane ***/
+
+	moveit_msgs::CollisionObject yPosSafetyPlane;
+	yPosSafetyPlane.header.frame_id = move_group.getPlanningFrame();
+
+	// The id of the object is used to identify it.
+	yPosSafetyPlane.id = "yPosPlane";
+
+	// Define a plane to add to the world - this one is y = 0.7
+	shape_msgs::Plane yPosPlane;
+	yPosPlane.coef = {1,0,0,-0.7};
+
+	yPosSafetyPlane.planes.push_back(yPosPlane);
+
+	// Add pose to plane
+	yPosSafetyPlane.plane_poses.push_back(planePose);
+
+	yPosSafetyPlane.operation = yPosSafetyPlane.ADD;
+
+	allSafetyPlanes.push_back(yPosSafetyPlane);
+
+	/*** Negative y safety plane ***/
+
+	moveit_msgs::CollisionObject yNegSafetyPlane;
+	yNegSafetyPlane.header.frame_id = move_group.getPlanningFrame();
+
+	// The id of the object is used to identify it.
+	yNegSafetyPlane.id = "yNegPlane";
+
+	// Define a plane to add to the world - this one is y = -0.7
+	shape_msgs::Plane yNegPlane;
+	yNegPlane.coef = {1,0,0,0.7};
+
+	yNegSafetyPlane.planes.push_back(yNegPlane);
+
+	// Add pose to plane
+	yNegSafetyPlane.plane_poses.push_back(planePose);
+
+	yNegSafetyPlane.operation = yNegSafetyPlane.ADD;
+
+	allSafetyPlanes.push_back(yNegSafetyPlane);
+
+
+
+
+
+
+
+
+	// Add all the safety planes into the world
+	ROS_INFO_NAMED("tutorial", "Add an object into the world");
+	planning_scene_interface.addCollisionObjects(allSafetyPlanes);
+
+	std::cout << "Pausing. Press enter to continue."; // Currently getting error - Number of planes does not match number of poses in collision object message
+	std::cin.ignore().get(); 
+
+		  // Wait for MoveGroup to recieve and process the collision object message
 //			  visual_tools.prompt("Press 'next' in the RvizVisualToolsGui window to once the collision object appears in RViz");
 
 	  // // Now when we plan a trajectory it will avoid the obstacle
@@ -179,7 +281,7 @@ int main(int argc, char** argv)
 
 	  // // Now, let's attach the collision object to the robot.
 	  // ROS_INFO_NAMED("tutorial", "Attach the object to the robot");
-	  // move_group.attachObject(collision_object.id);
+	  // move_group.attachObject(safetyPlaneBase.id);
 
 	  // // Show text in RViz of status
 	  // visual_tools.publishText(text_pose, "Object attached to robot", rvt::WHITE, rvt::XLARGE);
@@ -191,7 +293,7 @@ int main(int argc, char** argv)
 
 	  // // Now, let's detach the collision object from the robot.
 	  // ROS_INFO_NAMED("tutorial", "Detach the object from the robot");
-	  // move_group.detachObject(collision_object.id);
+	  // move_group.detachObject(safetyPlaneBase.id);
 
 	  // // Show text in RViz of status
 	  // visual_tools.publishText(text_pose, "Object dettached from robot", rvt::WHITE, rvt::XLARGE);
@@ -468,7 +570,7 @@ int main(int argc, char** argv)
 			  // // Now, let's remove the collision object from the world.
 			  // ROS_INFO_NAMED("tutorial", "Remove the object from the world");
 			  // std::vector<std::string> object_ids;
-			  // object_ids.push_back(collision_object.id);
+			  // object_ids.push_back(safetyPlaneBase.id);
 			  // planning_scene_interface.removeCollisionObjects(object_ids);
 
 			  // // Show text in RViz of status
