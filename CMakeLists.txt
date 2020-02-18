@@ -14,13 +14,13 @@ find_package(catkin REQUIRED COMPONENTS
 	cv_bridge
 	image_transport
 	tf
-	sensor_msgs
 	dynamic_reconfigure
 	message_generation
+	sensor_msgs
 	moveit_msgs
 	moveit_ros_move_group
+	moveit_ros_planning_interface
 	moveit_visual_tools
-	ur5_e_moveit_config
 )
 
 ## System dependencies are found with CMake's conventions
