@@ -158,7 +158,7 @@ int main(int argc, char** argv)
 	allSafetyPlanes.push_back(safetyPlaneBase); // Add safetyPlaneBase item to the vector
 
 
-	/*** Positive x safety plane ***/
+	/*** Positive x safety plane - to left of table ***/
 
 	moveit_msgs::CollisionObject xPosSafetyPlane;
 	xPosSafetyPlane.header.frame_id = move_group.getPlanningFrame();
@@ -166,9 +166,9 @@ int main(int argc, char** argv)
 	// The id of the object is used to identify it.
 	xPosSafetyPlane.id = "xPosPlane";
 
-	// Define a plane to add to the world - this one is x = 0.8.
+	// Define a plane to add to the world - this one is x = 0.45.
 	shape_msgs::Plane xPosPlane;
-	xPosPlane.coef = {1,0,0,-0.8};
+	xPosPlane.coef = {1,0,0,-0.45};
 
 	xPosSafetyPlane.planes.push_back(xPosPlane);
 
@@ -180,7 +180,7 @@ int main(int argc, char** argv)
 	allSafetyPlanes.push_back(xPosSafetyPlane);
 
 
-	/*** Negative x safety plane ***/
+	/*** Negative x safety plane - to right of table ***/
 
 	moveit_msgs::CollisionObject xNegSafetyPlane;
 	xNegSafetyPlane.header.frame_id = move_group.getPlanningFrame();
@@ -188,9 +188,9 @@ int main(int argc, char** argv)
 	// The id of the object is used to identify it.
 	xNegSafetyPlane.id = "xNegPlane";
 
-	// Define a plane to add to the world - this one is x = -0.5 (As it is behind the robot)
+	// Define a plane to add to the world - this one is x = -0.45
 	shape_msgs::Plane xNegPlane;
-	xNegPlane.coef = {1,0,0,0.5};
+	xNegPlane.coef = {1,0,0,0.45};
 
 	xNegSafetyPlane.planes.push_back(xNegPlane);
 
@@ -201,28 +201,28 @@ int main(int argc, char** argv)
 
 	allSafetyPlanes.push_back(xNegSafetyPlane);
 
-	/*** Positive y safety plane ***/
+	// /*** Positive y safety plane - in front of robot - not required as tool does not reach past table ***/
 
-	moveit_msgs::CollisionObject yPosSafetyPlane;
-	yPosSafetyPlane.header.frame_id = move_group.getPlanningFrame();
+	// moveit_msgs::CollisionObject yPosSafetyPlane;
+	// yPosSafetyPlane.header.frame_id = move_group.getPlanningFrame();
 
-	// The id of the object is used to identify it.
-	yPosSafetyPlane.id = "yPosPlane";
+	// // The id of the object is used to identify it.
+	// yPosSafetyPlane.id = "yPosPlane";
 
-	// Define a plane to add to the world - this one is y = 0.7
-	shape_msgs::Plane yPosPlane;
-	yPosPlane.coef = {1,0,0,-0.7};
+	// // Define a plane to add to the world - this one is y = -0.3.
+	// shape_msgs::Plane yPosPlane;
+	// yPosPlane.coef = {1,0,0,0.3};
 
-	yPosSafetyPlane.planes.push_back(yPosPlane);
+	// yPosSafetyPlane.planes.push_back(yPosPlane);
 
-	// Add pose to plane
-	yPosSafetyPlane.plane_poses.push_back(planePose);
+	// // Add pose to plane
+	// yPosSafetyPlane.plane_poses.push_back(planePose);
 
-	yPosSafetyPlane.operation = yPosSafetyPlane.ADD;
+	// yPosSafetyPlane.operation = yPosSafetyPlane.ADD;
 
-	allSafetyPlanes.push_back(yPosSafetyPlane);
+	// allSafetyPlanes.push_back(yPosSafetyPlane);
 
-	/*** Negative y safety plane ***/
+	/*** Negative y safety plane - in front of robot - not required as tool does not reach past table***/
 
 	moveit_msgs::CollisionObject yNegSafetyPlane;
 	yNegSafetyPlane.header.frame_id = move_group.getPlanningFrame();
@@ -230,9 +230,9 @@ int main(int argc, char** argv)
 	// The id of the object is used to identify it.
 	yNegSafetyPlane.id = "yNegPlane";
 
-	// Define a plane to add to the world - this one is y = -0.7
+	// Define a plane to add to the world - this one is y = -0.3
 	shape_msgs::Plane yNegPlane;
-	yNegPlane.coef = {1,0,0,0.7};
+	yNegPlane.coef = {1,0,0,0.3};
 
 	yNegSafetyPlane.planes.push_back(yNegPlane);
 
@@ -251,7 +251,7 @@ int main(int argc, char** argv)
 
 
 	// Add all the safety planes into the world
-	ROS_INFO_NAMED("tutorial", "Add an object into the world");
+	ROS_INFO_NAMED("tutorial", "Adding Planes into the world");
 	planning_scene_interface.addCollisionObjects(allSafetyPlanes);
 
 	std::cout << "Pausing. Press enter to continue."; // Currently getting error - Number of planes does not match number of poses in collision object message
