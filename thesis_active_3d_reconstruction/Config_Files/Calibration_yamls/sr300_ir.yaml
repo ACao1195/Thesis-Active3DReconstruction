@@ -1,0 +1,24 @@
+# Camera Distortion Parameters - in the form of k1, k2, p1, p2
+distortion:
+  parameters:
+    rows: 4
+    cols: 1
+    data:
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+  type: radial-tangential
+type: pinhole
+label: cam0
+line-delay-nanoseconds: 0
+image_width: 640
+image_height: 480
+intrinsics:
+  rows: 4
+  cols: 1
+  data:
+    - 615.6707153320312
+    - 615.962158203125
+    - 328.0010681152344
+    - 241.31031799316406

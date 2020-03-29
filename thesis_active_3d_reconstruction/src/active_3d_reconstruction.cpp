@@ -134,9 +134,11 @@ int main(int argc, char** argv)
 	// The id of the object is used to identify it.
 	safetyPlaneBase.id = "zPlane";
 
-	// Define a plane to add to the world - this one is z = 0.
+	// Define a plane to add to the world - this one is z = 0.12.
 	shape_msgs::Plane zPlane;
-	zPlane.coef = {0,0,1,0};
+
+	// Plane coeffs are in the form {a,b,c,d} where ax + by + cz + d = 0
+	zPlane.coef = {0,0,1,-0.12};
 
 	safetyPlaneBase.planes.push_back(zPlane);
 
@@ -160,7 +162,7 @@ int main(int argc, char** argv)
 
 	/*** Positive x safety plane - to left of table ***/
 
-	moveit_msgs::CollisionObject xPosSafetyPlane;
+/*	moveit_msgs::CollisionObject xPosSafetyPlane;
 	xPosSafetyPlane.header.frame_id = move_group.getPlanningFrame();
 
 	// The id of the object is used to identify it.
@@ -182,7 +184,7 @@ int main(int argc, char** argv)
 
 	/*** Negative x safety plane - to right of table ***/
 
-	moveit_msgs::CollisionObject xNegSafetyPlane;
+/*	moveit_msgs::CollisionObject xNegSafetyPlane;
 	xNegSafetyPlane.header.frame_id = move_group.getPlanningFrame();
 
 	// The id of the object is used to identify it.
@@ -224,7 +226,7 @@ int main(int argc, char** argv)
 
 	/*** Negative y safety plane - in front of robot - not required as tool does not reach past table***/
 
-	moveit_msgs::CollisionObject yNegSafetyPlane;
+/*	moveit_msgs::CollisionObject yNegSafetyPlane;
 	yNegSafetyPlane.header.frame_id = move_group.getPlanningFrame();
 
 	// The id of the object is used to identify it.
@@ -243,7 +245,7 @@ int main(int argc, char** argv)
 
 	allSafetyPlanes.push_back(yNegSafetyPlane);
 
-
+*/
 
 
 
@@ -253,10 +255,6 @@ int main(int argc, char** argv)
 	// Add all the safety planes into the world
 	ROS_INFO_NAMED("tutorial", "Adding Planes into the world");
 	planning_scene_interface.addCollisionObjects(allSafetyPlanes);
-
-	std::cout << "Pausing. Press enter to continue."; // Currently getting error - Number of planes does not match number of poses in collision object message
-	std::cin.ignore().get(); 
-
 		  // Wait for MoveGroup to recieve and process the collision object message
 //			  visual_tools.prompt("Press 'next' in the RvizVisualToolsGui window to once the collision object appears in RViz");
 
@@ -335,14 +333,14 @@ int main(int argc, char** argv)
 		// target_pose1.position.y = yPos; // Default 0.5
 		// target_pose1.position.z = zPos; // Default 0.3
 
-/** For first test, hard code a series of poses to travel to **/
+/** For calibration, hard code a series of poses to travel to - poses also saved on  **/
 	float defaultPoseArray[6][7] = {
-		{0.0639713982517, -0.620929999068, 0.788698559191, -0.0594218044617, -0.917449176915, 0.392916153838, 0.0193119907395},
-		{0.055569156182, -0.262537902542, 0.712367531044, -0.00158058467431, -0.889907752176, 0.456136657784, 0.00102166242184},
-		{0.232617945236, -0.53390833558, 0.545897337126, -0.567089743823, -0.749642003272, 0.276734110523, 0.199660515511},
-		{0.149916960276, -0.740201232612, 0.374250976797, -0.83246004276, -0.334308001714, 0.163904798409, 0.410345774021},
-		{-0.203529774284, -0.774755913974, 0.361349418812, -0.751897362776, 0.291794586708, -0.199444732106, 0.55653218582},
-		{-0.351847196931, -0.172958221408, 0.360015748826, -0.284916478218, 0.832128092577, -0.421435371409, 0.220856663266}
+		{0.383210233685, 0.840890260435, 0.291758403438, 1, 0, 0, 0},
+		{0.639339566719, 0.647879142596, 0.373294188842, -0.152975082739, -0.0194413713915, 0.567152000147, 0.809048370537},
+		{0.483075273206, 0.757975476777, 0.474561326773, -0.288465799612, 0.0693793698806, 0.473858820744, 0.829115072528},
+		{0.237569153749, 0.648627735827, 0.285944255968, -0.0960261939557, 0.0569150628906, 0.259405094058, 0.959295909961},
+		{0.0936515835503, 0.769269012194, 0.260153125664, -0.0946328787739, 0.037545617378, 0.129118210009, 0.986389087893},
+		{-0.00371977438008, 0.579038915082, 0.245150115465, -0.0326014701386, 0.0515643015861, 0.0592193768509, 0.996379110757}
 	};
 
 	for (int poseN = 0; poseN < 1; poseN++) { // Set poseN < 1 for debugging; default <7
@@ -350,10 +348,22 @@ int main(int argc, char** argv)
 		// initPose.position.x = defaultPoseArray[poseN][0];
 		// initPose.position.y = defaultPoseArray[poseN][1];
 		// initPose.position.z = defaultPoseArray[poseN][2];
+
 		// initPose.orientation.x = defaultPoseArray[poseN][3];
 		// initPose.orientation.y = defaultPoseArray[poseN][4];
 		// initPose.orientation.z = defaultPoseArray[poseN][5];
 		// initPose.orientation.w = defaultPoseArray[poseN][6];
+
+		// Quaternion pose from /tf does not match inputs into moveit
+		// From /tf into moveit:
+		// x -> -w
+		// y -> y
+		// z -> x
+		// w -> z
+		// initPose.orientation.x = defaultPoseArray[poseN][5];
+		// initPose.orientation.y = defaultPoseArray[poseN][4];
+		// initPose.orientation.z = defaultPoseArray[poseN][6];
+		// initPose.orientation.w = -defaultPoseArray[poseN][3];
 
 		// // Overrides
 		// initPose.position.x = -0.5;

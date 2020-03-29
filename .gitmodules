@@ -1,0 +1,12 @@
+[submodule "realsense-ros"]
+	path = realsense-ros
+	url = git@github.com:ACao1195/realsense-ros.git
+[submodule "orb_slam_2_ros"]
+	path = orb_slam_2_ros
+	url = git@github.com:ACao1195/orb_slam_2_ros.git
+[submodule "universal_robot"]
+	path = universal_robot
+	url = git@github.com:ACao1195/universal_robot.git
+[submodule "Universal_Robots_ROS_Driver"]
+	path = Universal_Robots_ROS_Driver
+	url = git@github.com:ACao1195/Universal_Robots_ROS_Driver.git
