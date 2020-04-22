@@ -144,8 +144,15 @@ include_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 
- add_executable(${PROJECT_NAME}_node src/active_3d_reconstruction.cpp)
- add_executable(${PROJECT_NAME}_get_tf_RGBD src/get_tf_RGBD_data.cpp)
+add_executable(${PROJECT_NAME}_node 
+	src/active_3d_reconstruction.cpp
+ 	)
+add_executable(${PROJECT_NAME}_get_tf_RGBD
+	src/get_tf_RGBD_data.cpp
+	)
+add_executable(${PROJECT_NAME}_ORBSLAM2_get_trajectory
+ 	src/ORBSLAM2_get_trajectory.cpp
+ 	)
 # add_executable(${PROJECT_NAME}_test src/test.cpp)
 
 
@@ -165,6 +172,10 @@ target_link_libraries(${PROJECT_NAME}_node
 )
 
 target_link_libraries(${PROJECT_NAME}_get_tf_RGBD
+  ${catkin_LIBRARIES}
+)
+
+target_link_libraries(${PROJECT_NAME}_ORBSLAM2_get_trajectory
   ${catkin_LIBRARIES}
 )
 
