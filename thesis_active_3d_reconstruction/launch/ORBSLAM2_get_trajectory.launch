@@ -1,6 +1,12 @@
 <launch>
+	<arg name = "camOffsetX" default = "0.035"/>
+	<arg name = "camOffsetY" default = "0.053"/>
+	<arg name = "camOffsetZ" default = "0.0003"/>	
 
-  <node name="thesis_active_3d_reconstruction_ORBSLAM2_get_trajectory" pkg="thesis_active_3d_reconstruction" type="thesis_active_3d_reconstruction_ORBSLAM2_get_trajectory" respawn="false" output="screen">
-  </node>
+	<param name="camOffsetX" type="double" value="$(arg camOffsetX)"/>
+	<param name="camOffsetY" type="double" value="$(arg camOffsetY)"/>
+	<param name="camOffsetZ" type="double" value="$(arg camOffsetZ)"/>
 
+	<node name="thesis_active_3d_reconstruction_ORBSLAM2_get_trajectory" pkg="thesis_active_3d_reconstruction" type="thesis_active_3d_reconstruction_ORBSLAM2_get_trajectory" respawn="false" output="screen">  	
+	</node>
 </launch>
