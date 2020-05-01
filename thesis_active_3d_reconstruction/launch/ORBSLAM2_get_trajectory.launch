@@ -1,7 +1,7 @@
 <launch>
-	<arg name = "camOffsetX" default = "0.035"/>
-	<arg name = "camOffsetY" default = "0.053"/>
-	<arg name = "camOffsetZ" default = "0.0003"/>	
+	<arg name = "camOffsetX" default = "0.0003"/>
+	<arg name = "camOffsetY" default = "0.03499"/>
+	<arg name = "camOffsetZ" default = "0.05251"/>	
 
 	<param name="camOffsetX" type="double" value="$(arg camOffsetX)"/>
 	<param name="camOffsetY" type="double" value="$(arg camOffsetY)"/>
