@@ -44,6 +44,7 @@
 #include <message_filters/time_synchronizer.h>
 #include <sensor_msgs/Image.h>
 #include <visualization_msgs/Marker.h>
+#include <visualization_msgs/MarkerArray.h>
 
 using namespace std;
 using namespace boost::qvm;
@@ -73,7 +74,8 @@ nav_msgs::Path path_arm;
 ros::Publisher ORBSLAM2_traj_pub;
 ros::Publisher arm_traj_pub; 
 
-// Marker to represent model
+// Marker to represent model and base of arm
+visualization_msgs::MarkerArray markerArray;
 visualization_msgs::Marker marker;
 
 int firstTF = 0;
@@ -92,7 +94,7 @@ void mySigIntHandler(int sig){
 
 	bag.write("/orb_slam2_rgbd/trajectory", ros::Time::now(), path_ORBSLAM2);
 	bag.write("/tf/trajectory", ros::Time::now(), path_arm);
-	bag.write("/visual_marker", ros::Time::now(), marker);
+	bag.write("/visual_marker", ros::Time::now(), markerArray);
 	bag.close();
 
 	g_request_shutdown = 1;
@@ -359,8 +361,9 @@ int main(int argc, char **argv)
 	ORBSLAM2_traj_pub = traj_nh.advertise<nav_msgs::Path>("/orb_slam2_rgbd/trajectory", 1000);
 
 	// Set up a marker to represent the target
-	ros::Publisher markerPub = traj_nh.advertise<visualization_msgs::Marker>("/visual_marker", 0);
+	ros::Publisher markerPub = traj_nh.advertise<visualization_msgs::MarkerArray>("/visual_marker", 0);
 
+	// Define marker for model stand-in
 	marker.header.frame_id = "map";
 	marker.header.stamp = ros::Time();
 	marker.ns = "my_namespace";
@@ -382,6 +385,32 @@ int main(int argc, char **argv)
 	marker.color.g = 1.0;
 	marker.color.b = 0.0;
 
+	markerArray.markers.push_back(marker);
+
+	// Define marker for base of arm
+	marker.header.frame_id = "map";
+	marker.header.stamp = ros::Time();
+	marker.ns = "my_namespace";
+	marker.id = 1;
+	marker.type = visualization_msgs::Marker::CYLINDER;
+	marker.action = visualization_msgs::Marker::ADD;
+	marker.pose.position.x = 0;
+	marker.pose.position.y = 0;
+	marker.pose.position.z = 0.15;
+	marker.pose.orientation.x = 0.0;
+	marker.pose.orientation.y = 0.0;
+	marker.pose.orientation.z = 0.0;
+	marker.pose.orientation.w = 1.0;
+	marker.scale.x = 0.1;
+	marker.scale.y = 0.1;
+	marker.scale.z = 0.3;
+	marker.color.a = 1.0; // Don't forget to set the alpha!
+	marker.color.r = 0.6; // Colour grey
+	marker.color.g = 0.6;
+	marker.color.b = 0.6;
+
+	markerArray.markers.push_back(marker);
+
 	// Set publishing to run at 60Hz
 	ros::Rate loop_rate(15);
 
@@ -389,7 +418,7 @@ int main(int argc, char **argv)
 	while(!g_request_shutdown)
 	{
 		ros::spinOnce();
-		markerPub.publish(marker);
+		markerPub.publish(markerArray);
 
 		loop_rate.sleep();
 	}
