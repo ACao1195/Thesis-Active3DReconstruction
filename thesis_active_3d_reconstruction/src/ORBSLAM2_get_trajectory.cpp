@@ -39,6 +39,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Path.h>
 #include <tf2_msgs/TFMessage.h>
+#include <sensor_msgs/PointCloud2.h>
 
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
@@ -57,11 +58,12 @@ double theta = -0.47; // = 26.92 deg
 vec<float,3> camOffset = {0, 0, 0};
 
 // Quaternion to store the initial translation and orientation of the camera rotated by initial camera position
-quat<double> armTransOffset;
-quat<double> armOrientOffset;
+quat<double> armTransOffset = {0, 0, 0, 0};
+quat<double> armOrientOffset = {0, 0, 0, 1};
 
 // File to save trajectory to - is located in .ros folder
-string save_path = "trajectory.bag";
+string final_save_path = "trajectoryFinal.bag";
+string full_save_path = "trajectoryFull.bag";
 
 // Signal-safe flag for whether shutdown is requested
 sig_atomic_t volatile g_request_shutdown = 0;
@@ -69,6 +71,9 @@ sig_atomic_t volatile g_request_shutdown = 0;
 // Define paths as global variables for simplicity
 nav_msgs::Path path_ORBSLAM2; 
 nav_msgs::Path path_arm;
+
+sensor_msgs::PointCloud2 pointcloudArray[1000];
+int nPC = 0;
 
 // Have publisher as global variable
 ros::Publisher ORBSLAM2_traj_pub;
@@ -86,110 +91,132 @@ int n_arm_pose = 1;
 // Debug check
 int n = 0;
 
+rosbag::Bag fullBag;
+
 // Override on exiting program
 void mySigIntHandler(int sig){
 	// Save the trajectory to a bag - saves to /.ros/trajectory.bag
 	rosbag::Bag bag;
-	bag.open(save_path, rosbag::bagmode::Write);
+	bag.open(final_save_path, rosbag::bagmode::Write);
 
 	bag.write("/orb_slam2_rgbd/trajectory", ros::Time::now(), path_ORBSLAM2);
 	bag.write("/tf/trajectory", ros::Time::now(), path_arm);
 	bag.write("/visual_marker", ros::Time::now(), markerArray);
+	bag.write("/orb_slam2_rgbd/map_points", ros::Time::now(), pointcloudArray[nPC]);
 	bag.close();
+	fullBag.close();
 
 	g_request_shutdown = 1;
+}
+
+void pointcloud_Callback(const sensor_msgs::PointCloud2 points){
+	ROS_INFO_STREAM("Received pointcloud: " << nPC + 1);
+
+	// Janky - always store last trajectory, if over 1000 discard any except the last one
+	pointcloudArray[nPC] = points;
+	if(nPC < 1000){
+		nPC++;
+	}
+
+	fullBag.write("/orb_slam2_rgbd/map_points", ros::Time::now(), points);
+	
 }
 
 void pose_ORBSLAM2_Callback(const geometry_msgs::PoseStamped::ConstPtr& msg) {
 	float xPosInit, yPosInit, zPosInit;
 
-	// Wait for the first arm tf message to get the offset for calculations
-	if(firstTF == 0) {
-		return;
-	}
+	geometry_msgs::PoseStamped pose;
 
 	// Verify pose received
 	ROS_INFO_STREAM("Received ORBSLAM2 pose: " << n_ORBSLAM2_pose);
 	n_ORBSLAM2_pose++;
 
-	geometry_msgs::PoseStamped pose;
+	// If first arm tf message never received, directly output pose instead
+	if(firstTF == 0) {
+		path_ORBSLAM2.header = msg->header;
+		pose.header = msg->header;
+		pose.pose = msg->pose;
+	}
+	else {
+		path_ORBSLAM2.header = msg->header;
+		pose.header = msg->header;
 
-	path_ORBSLAM2.header = msg->header;
-	pose.header = msg->header;
+		// Use this only if the object is flat, i.e. aligned with the z-axis
+		// pose.pose = msg->pose;
+			
+		// Extract x,y,z pose, place into quaternion
+		boost::qvm::quat<double> ORBSLAM2TransQuat = {0, msg->pose.position.x, msg->pose.position.y, msg->pose.position.z};
+		// Extract orientation
+		quat<double> ORBSLAM2OrientQuat = {msg->pose.orientation.w, msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z};
 
-	// Use this only if the object is flat, i.e. aligned with the z-axis
-	// pose.pose = msg->pose;
-		
-	// Extract x,y,z pose, place into quaternion
-	boost::qvm::quat<double> ORBSLAM2TransQuat = {0, msg->pose.position.x, msg->pose.position.y, msg->pose.position.z};
-	// Extract orientation
-	quat<double> ORBSLAM2OrientQuat = {msg->pose.orientation.w, msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z};
+		// Pose = Pose of arm + qv(q^-1), q = initial rotation of arm, v = ORBSLAM2 vector
+		quat<double> finalTransQuat = armTransOffset + operator*(operator*(armOrientOffset, ORBSLAM2TransQuat), conjugate(armOrientOffset));
 
-	// Pose = Pose of arm + qv(q^-1), q = initial rotation of arm, v = ORBSLAM2 vector
-	quat<double> finalTransQuat = armTransOffset + operator*(operator*(armOrientOffset, ORBSLAM2TransQuat), conjugate(armOrientOffset));
+		// Rotation = q3 * q2 * q1, q3 = initial pose of arm, q2 = ORBSLAM2 pose of arm, q1 = initial pose in ORBSLAM2 (0,0,0,1) so q3 * q2
+		quat<double> finalOrientQuat = operator*(armOrientOffset,ORBSLAM2OrientQuat);
 
-	// Rotation = q3 * q2 * q1, q3 = initial pose of arm, q2 = ORBSLAM2 pose of arm, q1 = initial pose in ORBSLAM2 (0,0,0,1) so q3 * q2
-	quat<double> finalOrientQuat = operator*(armOrientOffset,ORBSLAM2OrientQuat);
+		// Assign to new pose
+		pose.pose.orientation.x = X(finalOrientQuat);
+		pose.pose.orientation.y = Y(finalOrientQuat);
+		pose.pose.orientation.z = Z(finalOrientQuat);
+		pose.pose.orientation.w = S(finalOrientQuat);
 
-	// Assign to new pose
-	pose.pose.orientation.x = X(finalOrientQuat);
-	pose.pose.orientation.y = Y(finalOrientQuat);
-	pose.pose.orientation.z = Z(finalOrientQuat);
-	pose.pose.orientation.w = S(finalOrientQuat);
+		pose.pose.position.x = X(finalTransQuat);
+		pose.pose.position.y = Y(finalTransQuat);
+		pose.pose.position.z = Z(finalTransQuat);
 
-	pose.pose.position.x = X(finalTransQuat);
-	pose.pose.position.y = Y(finalTransQuat);
-	pose.pose.position.z = Z(finalTransQuat);
-
-//	ROS_INFO_STREAM("ORBSLAM2 raw position: " << xPosInit << " y: " << yPosInit << " z: " << zPosInit);
+	//	ROS_INFO_STREAM("ORBSLAM2 raw position: " << xPosInit << " y: " << yPosInit << " z: " << zPosInit);
 
 
 
-	/*/////////////////
-	Manual Rotation
-	////////////////////
+		/*/////////////////
+		Manual Rotation
+		////////////////////
 
-	// Need to rotate the trajectory so that it is flat with the z-axis
-	xPosInit = msg->pose.position.x;
-	yPosInit = msg->pose.position.y;
-	zPosInit = msg->pose.position.z;
+		// Need to rotate the trajectory so that it is flat with the z-axis
+		xPosInit = msg->pose.position.x;
+		yPosInit = msg->pose.position.y;
+		zPosInit = msg->pose.position.z;
 
-	double cosTheta = cos(theta);
-	double sinTheta = sin(theta);
+		double cosTheta = cos(theta);
+		double sinTheta = sin(theta);
 
-	// Rotate about y-axis and shift to position of arm
-	// Flip x and z as they are upside down, and offset by starting position of tf
-	pose.pose.position.x = xOffset - (xPosInit * cosTheta + zPosInit * sinTheta);
-	pose.pose.position.y = yOffset + (yPosInit);
-	pose.pose.position.z = zOffset - (zPosInit * cosTheta - xPosInit * sinTheta);
+		// Rotate about y-axis and shift to position of arm
+		// Flip x and z as they are upside down, and offset by starting position of tf
+		pose.pose.position.x = xOffset - (xPosInit * cosTheta + zPosInit * sinTheta);
+		pose.pose.position.y = yOffset + (yPosInit);
+		pose.pose.position.z = zOffset - (zPosInit * cosTheta - xPosInit * sinTheta);
 
-//	ROS_INFO_STREAM("ORBSLAM2 Pose.pose.position.y = " << pose.pose.position.y);
+	//	ROS_INFO_STREAM("ORBSLAM2 Pose.pose.position.y = " << pose.pose.position.y);
 
-	using namespace boost::qvm;
+		using namespace boost::qvm;
 
-	// Apply 180 degree rotation about y-axis
-	quat<double> ORBSLAMquat = {msg->pose.orientation.w, msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z};
+		// Apply 180 degree rotation about y-axis
+		quat<double> ORBSLAMquat = {msg->pose.orientation.w, msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z};
 
-	// Rotation by 180 deg in y-axis (account for skew correction)
-	quat<double> rotQuat = roty_quat(3.14159f + theta);
+		// Rotation by 180 deg in y-axis (account for skew correction)
+		quat<double> rotQuat = roty_quat(3.14159f + theta);
 
-	// Rotate ORBSLAMquat by rotQuat
-	quat<double> finalOrientQuat = boost::qvm::operator*(rotQuat, ORBSLAMquat);
+		// Rotate ORBSLAMquat by rotQuat
+		quat<double> finalOrientQuat = boost::qvm::operator*(rotQuat, ORBSLAMquat);
 
-	pose.pose.orientation.x = boost::qvm::X(finalOrientQuat);
-	pose.pose.orientation.y = boost::qvm::Y(finalOrientQuat);
-	pose.pose.orientation.z = boost::qvm::Z(finalOrientQuat);
-	pose.pose.orientation.w = boost::qvm::S(finalOrientQuat);
+		pose.pose.orientation.x = boost::qvm::X(finalOrientQuat);
+		pose.pose.orientation.y = boost::qvm::Y(finalOrientQuat);
+		pose.pose.orientation.z = boost::qvm::Z(finalOrientQuat);
+		pose.pose.orientation.w = boost::qvm::S(finalOrientQuat);
 
-	*/
+		*/
 
-	// Caclulate transform from ORBSLAM2 frame of reference (Origin at 0,0,0, rotation 0,0,0,1) to camera frame of reference
+		// Caclulate transform from ORBSLAM2 frame of reference (Origin at 0,0,0, rotation 0,0,0,1) to camera frame of reference
 
-	//	pose.pose.orientation = msg->pose.orientation;
+		//	pose.pose.orientation = msg->pose.orientation;
 
-	// Debug: Print header of msg
-	// ROS_INFO_STREAM("\nReceived pose: " << msg->header);
+		// Debug: Print header of msg
+		// ROS_INFO_STREAM("\nReceived pose: " << msg->header);
+	
+	}
 
+	
 	// path_ORBSLAM2.header = msg->header;
 	path_ORBSLAM2.poses.push_back(pose); // Add new pose to path array
 
@@ -200,6 +227,9 @@ void pose_ORBSLAM2_Callback(const geometry_msgs::PoseStamped::ConstPtr& msg) {
 	// Can publish directly to view in rviz or similar
 	//	traj_pub.publish(path_ORBSLAM2);
 	ORBSLAM2_traj_pub.publish(path_ORBSLAM2);
+
+	// Write to complete bag
+	fullBag.write("/orb_slam2_rgbd/trajectory", ros::Time::now(), path_ORBSLAM2);
 
 }
 
@@ -308,6 +338,11 @@ void pose_arm_Callback(/*const sensor_msgs::ImageConstPtr& image,*/ const tf2_ms
 		path_arm.poses.push_back(pose); // Add new pose to path array
 
 		arm_traj_pub.publish(path_arm); // Publish pose
+
+		// Write to complete bag
+		fullBag.write("/tf/trajectory", ros::Time::now(), path_arm);
+		fullBag.write("/visual_marker", ros::Time::now(), markerArray);
+
 	}
 }
 
@@ -347,6 +382,11 @@ int main(int argc, char **argv)
 
 	// Define second subscriber for obtaining the tf from the arm
 	ros::Subscriber sub_arm_pose = traj_nh.subscribe("/tf", 1, pose_arm_Callback);
+
+	ros::Subscriber sub_pointcloud = traj_nh.subscribe("/orb_slam2_rgbd/map_points", 10, pointcloud_Callback);
+
+	// Bag to write all the trajectory and pointcloud into
+	fullBag.open(full_save_path, rosbag::bagmode::Write);
 
     // message_filters::Subscriber<sensor_msgs::Image> image_sub(traj_nh, "/camera/rgb/image_raw", 1);
     // message_filters::Subscriber<tf2_msgs::TFMessage> tf_sub(traj_nh, "/tf", 1);	
@@ -419,7 +459,7 @@ int main(int argc, char **argv)
 	{
 		ros::spinOnce();
 		markerPub.publish(markerArray);
-
+		// Write markers to bag
 		loop_rate.sleep();
 	}
 
