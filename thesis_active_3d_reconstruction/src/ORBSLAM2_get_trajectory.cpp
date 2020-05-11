@@ -47,6 +47,12 @@
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
 
+// For pointcloud transformation
+#include <pcl_ros/point_cloud.h>
+#include <pcl_ros/transforms.h>
+#include <tf/LinearMath/Transform.h>
+#include <tf/LinearMath/Quaternion.h>
+
 using namespace std;
 using namespace boost::qvm;
 
@@ -109,16 +115,61 @@ void mySigIntHandler(int sig){
 	g_request_shutdown = 1;
 }
 
-void pointcloud_Callback(const sensor_msgs::PointCloud2 points){
+void pointcloud_Callback(const sensor_msgs::PointCloud2::ConstPtr& points){
 	ROS_INFO_STREAM("Received pointcloud: " << nPC + 1);
 
-	// Janky - always store last trajectory, if over 1000 discard any except the last one
-	pointcloudArray[nPC] = points;
-	if(nPC < 1000){
-		nPC++;
+	if(firstTF == 0) {
+	// Always store last pointcloud, if over 1000 discard any except the last one
+		pointcloudArray[nPC] = *points;
+		fullBag.write("/orb_slam2_rgbd/map_points", ros::Time::now(), points);
+	}
+	else { // Transform into arm frame of reference
+
+		// Construct a pure rotation, then pure translation matrix - must be Eigen 4x4 matrix
+
+		// Convert to Eigen quaternion (note: Initialised in wxyz, stored as xyzw)
+		Eigen::Quaternionf quat(boost::qvm::S(armOrientOffset), X(armOrientOffset), Y(armOrientOffset), Z(armOrientOffset));
+		Eigen::Matrix3f rotMat = quat.normalized().toRotationMatrix();
+		Eigen::Matrix4f transformRotation;
+		transformRotation.setIdentity(); // Set identity matrix to make bottom right a 1
+		transformRotation.block<3,3>(0,0) = rotMat; // Insert rotation matrix manually
+
+		Eigen::Vector3f transVec(boost::qvm::X(armTransOffset), Y(armTransOffset), Z(armTransOffset));
+		Eigen::Matrix4f transformTranslation;
+		transformTranslation.setIdentity(); // Set identity matrix to make bottom right a 1
+		transformTranslation.block<3,1>(0,3) = transVec; // Insert rotation matrix manually
+
+		// tf::Transform transformRotation;
+		// tf::Quaternion quat(boost::qvm::X(armOrientOffset), Y(armOrientOffset), Z(armOrientOffset), S(armOrientOffset));
+		// transformRotation.setRotation(quat);
+		// transformRotation.setOrigin(tf::Vector3(0,0,0));
+
+		// tf::Transform transformTranslation;
+		// tf::Quaternion baseQuat(0,0,0,1);
+		// transformTranslation.setOrigin(tf::Vector3(boost::qvm::X(armTransOffset), Y(armTransOffset), Z(armTransOffset)));
+		// transformTranslation.setRotation(baseQuat);
+		
+
+//		ROS_INFO_STREAM("armTransOffset=" << X(armTransOffset) << "," << Y(armTransOffset) << "," <<Z(armTransOffset));
+//		ROS_INFO_STREAM("Transform=" << transform.getOrigin().x() << "," << transform.getOrigin().y() << "," <<transform.getOrigin().z());
+
+		// Apply rotation first
+		sensor_msgs::PointCloud2 pointsOutTemp;
+		pcl_ros::transformPointCloud(transformRotation, *points, pointsOutTemp);
+		sensor_msgs::PointCloud2 pointsOut;
+		pcl_ros::transformPointCloud(transformTranslation, pointsOutTemp, pointsOut);
+
+
+//		ROS_INFO_STREAM("Finished transforming pointcloud.");
+
+		pointcloudArray[nPC] = pointsOut;
+		fullBag.write("/orb_slam2_rgbd/map_points", ros::Time::now(), pointsOut);
 	}
 
-	fullBag.write("/orb_slam2_rgbd/map_points", ros::Time::now(), points);
+	// Always store last trajectory, if over 1000 discard any except the last one
+	if(nPC < 999){
+			nPC++;
+	}
 	
 }
 
@@ -403,29 +454,29 @@ int main(int argc, char **argv)
 	// Set up a marker to represent the target
 	ros::Publisher markerPub = traj_nh.advertise<visualization_msgs::MarkerArray>("/visual_marker", 0);
 
-	// Define marker for model stand-in
-	marker.header.frame_id = "map";
-	marker.header.stamp = ros::Time();
-	marker.ns = "my_namespace";
-	marker.id = 0;
-	marker.type = visualization_msgs::Marker::CUBE;
-	marker.action = visualization_msgs::Marker::ADD;
-	marker.pose.position.x = 0.4;
-	marker.pose.position.y = 0.05;
-	marker.pose.position.z = 0.1;
-	marker.pose.orientation.x = 0.0;
-	marker.pose.orientation.y = 0.0;
-	marker.pose.orientation.z = 0.0;
-	marker.pose.orientation.w = 1.0;
-	marker.scale.x = 0.2;
-	marker.scale.y = 0.2;
-	marker.scale.z = 0.2;
-	marker.color.a = 1.0; // Don't forget to set the alpha!
-	marker.color.r = 0.0;
-	marker.color.g = 1.0;
-	marker.color.b = 0.0;
+	// Define marker for model stand-in - DO NOT NEED ANYMORE AS CAN TRANSFORM POINTCLOUD
+	// marker.header.frame_id = "map";
+	// marker.header.stamp = ros::Time();
+	// marker.ns = "my_namespace";
+	// marker.id = 0;
+	// marker.type = visualization_msgs::Marker::CUBE;
+	// marker.action = visualization_msgs::Marker::ADD;
+	// marker.pose.position.x = 0.4;
+	// marker.pose.position.y = 0.05;
+	// marker.pose.position.z = 0.1;
+	// marker.pose.orientation.x = 0.0;
+	// marker.pose.orientation.y = 0.0;
+	// marker.pose.orientation.z = 0.0;
+	// marker.pose.orientation.w = 1.0;
+	// marker.scale.x = 0.2;
+	// marker.scale.y = 0.2;
+	// marker.scale.z = 0.2;
+	// marker.color.a = 1.0; // Don't forget to set the alpha!
+	// marker.color.r = 0.0;
+	// marker.color.g = 1.0;
+	// marker.color.b = 0.0;
 
-	markerArray.markers.push_back(marker);
+//	markerArray.markers.push_back(marker);
 
 	// Define marker for base of arm
 	marker.header.frame_id = "map";

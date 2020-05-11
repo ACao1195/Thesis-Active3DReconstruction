@@ -61,6 +61,7 @@
   <depend>sensor_msgs</depend>
   <depend>dynamic_reconfigure</depend>
   <depend>message_generation</depend>
+  <depend>pcl_ros</depend>
 
   <!-- Dependencies on other downloaded packages used in this program - ISSUE - Seems to cause an error when enabled -->
   <depend>ur5_e_moveit_config</depend>

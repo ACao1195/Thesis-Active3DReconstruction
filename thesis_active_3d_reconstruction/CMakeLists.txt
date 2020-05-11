@@ -23,6 +23,7 @@ find_package(catkin REQUIRED COMPONENTS
 	moveit_ros_move_group
 	moveit_ros_planning_interface
 	moveit_visual_tools
+	pcl_ros
 )
 
 ## System dependencies are found with CMake's conventions
