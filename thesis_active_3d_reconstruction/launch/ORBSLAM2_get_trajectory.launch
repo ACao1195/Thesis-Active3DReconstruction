@@ -1,13 +1,17 @@
 <launch>
-	<arg name = "camOffsetX" default = "0.0003"/>
-	<arg name = "camOffsetY" default = "0.03499"/>
-	<arg name = "camOffsetZ" default = "0.05251"/>	
+	<arg name = "camOffsetX" default = "0.00846"/>
+	<arg name = "camOffsetY" default = "0.02018"/>
+	<arg name = "camOffsetZ" default = "0.05452"/>	
 
 	<arg name = "debugFlag" default = "false" />
+
+	<!-- Flag to capture SLAM debug image -->
+	<arg name = "captureImage" default = "false" />
 
 	<param name="camOffsetX" type="double" value="$(arg camOffsetX)"/>
 	<param name="camOffsetY" type="double" value="$(arg camOffsetY)"/>
 	<param name="camOffsetZ" type="double" value="$(arg camOffsetZ)"/>
+	<param name="captureImageFlag" type="bool" value="$(arg captureImage)"/>
 
 	<!-- Debug is ON -->
 	<node name="thesis_active_3d_reconstruction_ORBSLAM2_get_trajectory" pkg="thesis_active_3d_reconstruction" type="thesis_active_3d_reconstruction_ORBSLAM2_get_trajectory" respawn="false" output="screen" launch-prefix="valgrind" if="$(eval debugFlag)">  	

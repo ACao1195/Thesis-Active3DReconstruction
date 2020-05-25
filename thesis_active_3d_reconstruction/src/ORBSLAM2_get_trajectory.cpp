@@ -40,6 +40,7 @@
 #include <nav_msgs/Path.h>
 #include <tf2_msgs/TFMessage.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/Image.h>
 
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
@@ -93,6 +94,7 @@ int firstTF = 0;
 
 int n_ORBSLAM2_pose = 1;
 int n_arm_pose = 1;
+int n_debug_image = 1;
 
 // Debug check
 int n = 0;
@@ -113,6 +115,12 @@ void mySigIntHandler(int sig){
 	fullBag.close();
 
 	g_request_shutdown = 1;
+}
+
+void debug_image_Callback(const sensor_msgs::ImageConstPtr& image){
+	ROS_INFO_STREAM("Received debug image: " << n_debug_image);
+	fullBag.write("orb_slam2_rgbd/debug_image", ros::Time::now(), image);
+	n_debug_image++;
 }
 
 void pointcloud_Callback(const sensor_msgs::PointCloud2::ConstPtr& points){
@@ -412,6 +420,10 @@ int main(int argc, char **argv)
 	traj_nh.getParam("camOffsetY", camOffsetY);
 	traj_nh.getParam("camOffsetZ", camOffsetZ);
 
+	// Define if will capture ORBSLAM2 debug image
+	bool captureImageFlag;
+	traj_nh.getParam("captureImageFlag", captureImageFlag);
+
 	// Get camera offset from input arguments, store into vector
 	boost::qvm::A<0>(camOffset) = camOffsetX;
 	A<1>(camOffset) = camOffsetY;
@@ -436,8 +448,13 @@ int main(int argc, char **argv)
 
 	ros::Subscriber sub_pointcloud = traj_nh.subscribe("/orb_slam2_rgbd/map_points", 10, pointcloud_Callback);
 
-	// Bag to write all the trajectory and pointcloud into
-	fullBag.open(full_save_path, rosbag::bagmode::Write);
+	// Need to define subscriber here or it is deleted when exiting 'if' block
+	ros::Subscriber sub_debug_image;
+	if(captureImageFlag) {
+		ROS_INFO_STREAM("Will capture debug image.");
+		sub_debug_image = traj_nh.subscribe("/orb_slam2_rgbd/debug_image", 10, debug_image_Callback);
+	}
+
 
     // message_filters::Subscriber<sensor_msgs::Image> image_sub(traj_nh, "/camera/rgb/image_raw", 1);
     // message_filters::Subscriber<tf2_msgs::TFMessage> tf_sub(traj_nh, "/tf", 1);	
@@ -445,14 +462,16 @@ int main(int argc, char **argv)
 
     // sync.registerCallback(boost::bind(&pose_arm_Callback, _1, _2));
 
-
-
 	// Set up publishing line for path to be sent on
 	arm_traj_pub = traj_nh.advertise<nav_msgs::Path>("/tf/trajectory", 1000);
 	ORBSLAM2_traj_pub = traj_nh.advertise<nav_msgs::Path>("/orb_slam2_rgbd/trajectory", 1000);
 
 	// Set up a marker to represent the target
 	ros::Publisher markerPub = traj_nh.advertise<visualization_msgs::MarkerArray>("/visual_marker", 0);
+
+	// Bag to write all the trajectory and pointcloud into
+	fullBag.open(full_save_path, rosbag::bagmode::Write);
+
 
 	// Define marker for model stand-in - DO NOT NEED ANYMORE AS CAN TRANSFORM POINTCLOUD
 	// marker.header.frame_id = "map";

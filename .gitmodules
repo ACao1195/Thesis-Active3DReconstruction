@@ -10,3 +10,6 @@
 [submodule "Universal_Robots_ROS_Driver"]
 	path = Universal_Robots_ROS_Driver
 	url = git@github.com:ACao1195/Universal_Robots_ROS_Driver.git
+[submodule "g2o"]
+	path = g2o
+	url = https://github.com/ACao1195/g2o
